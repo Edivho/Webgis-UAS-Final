@@ -6,6 +6,7 @@ import EvaluasiModel from "./EvaluasiModel";
 import InsightHasil from "./InsightHasil";
 import FloodContext from "./FloodContext";
 import { getFeatureArea } from "../utils/geoUtils";
+import { useMusicPlayer } from "../hooks/useMusicPlayer";
 import { 
   Map, 
   Database, 
@@ -18,7 +19,11 @@ import {
   Layers,
   TrendingUp,
   TrendingDown,
-  AlertTriangle
+  AlertTriangle,
+  Music,
+  Volume2,
+  VolumeX,
+  X
 } from "lucide-react";
 
 interface WebGISDashboardProps {
@@ -61,6 +66,15 @@ function AnimatedCounter({ value, suffix = " Ha" }: { value: number; suffix?: st
 
 export default function WebGISDashboard({ onBackToLanding, theme, onToggleTheme }: WebGISDashboardProps) {
   const [activeTab, setActiveTab] = useState<TabType>("map");
+  
+  // Music player state from global context (persistent across all pages)
+  const {
+    isPlaying,
+    showPlayerFloat,
+    setIsPlaying,
+    setIsMuted,
+    setShowPlayerFloat,
+  } = useMusicPlayer();
   
   // Real datasets state
   const [veg2025, setVeg2025] = useState<any>(null);
@@ -151,6 +165,52 @@ export default function WebGISDashboard({ onBackToLanding, theme, onToggleTheme 
     <div className={`min-h-screen transition-colors duration-300 ${
       theme === "dark" ? "bg-[#0f172a] text-[#f8fafc]" : "bg-slate-50 text-slate-800"
     }`}>
+      {/* FLOATING MUSIC PLAYER - Persists across all pages */}
+      <AnimatePresence>
+        {showPlayerFloat && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.95 }}
+            className="fixed bottom-6 right-6 z-[100] flex items-center bg-slate-900/90 dark:bg-slate-950/95 text-white backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-700/50 shadow-xl gap-2 hover:bg-slate-950 dark:hover:bg-black transition-all cursor-pointer select-none"
+            onClick={() => {
+              setIsPlaying(!isPlaying);
+              setIsMuted(false);
+            }}
+          >
+            {isPlaying ? (
+              <Volume2 className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-slate-400 shrink-0" />
+            )}
+            <span className="text-xs font-bold font-sans tracking-tight">
+              {isPlaying ? "Musik Hidup" : "Musik Mati"}
+            </span>
+            <div className="h-4 w-[1px] bg-slate-700/50 mx-1"></div>
+            <div 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPlayerFloat(false);
+              }}
+              className="p-0.5 hover:bg-slate-800 rounded-full text-slate-500 hover:text-slate-300 transition-colors"
+              title="Tutup"
+            >
+              <X className="w-3 h-3" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {!showPlayerFloat && (
+        <button 
+          onClick={() => setShowPlayerFloat(true)}
+          className="fixed bottom-6 right-6 z-[100] p-3 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl border border-emerald-500/30 transition-all cursor-pointer"
+          title="Buka Pemutar Lagu Aceh"
+        >
+          <Music className="w-4 h-4" />
+        </button>
+      )}
+
       {/* Professional Navbar */}
       <header className={`sticky top-0 z-50 px-6 py-4 border-b transition-colors duration-300 shadow-md ${
         theme === "dark" 

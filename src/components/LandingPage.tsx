@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   ArrowRight, 
@@ -19,17 +19,12 @@ import {
   Sun,
   Moon,
   Music,
-  Play,
-  Pause,
   Volume2,
   VolumeX,
-  Disc,
-  X,
-  Volume1,
-  Maximize2,
-  ChevronDown
+  X
 } from "lucide-react";
 import { TIMELINE_DATA, METHODOLOGY_STEPS, RESEARCH_RESULTS } from "../data/geojson";
+import { useMusicPlayer } from "../hooks/useMusicPlayer";
 const satelliteBg = new URL("../assets/images/aceh_tamiang_satellite_bg_1784643991782.jpg", import.meta.url).href;
 
 interface LandingPageProps {
@@ -48,270 +43,22 @@ export default function LandingPage({
   
   const handleEnter = onEnterDashboard || onEnterWebGIS;
 
-  // Sound Player State
-  const [selectedTrack, setSelectedTrack] = useState<"vocal" | "synth" | "instrumental">("vocal");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(60);
-  const [isMuted, setIsMuted] = useState(false);
-  const [showMusicDropdown, setShowMusicDropdown] = useState(false);
-  const [showPlayerFloat, setShowPlayerFloat] = useState(true);
-
-  const audioStreamRef = useRef<HTMLAudioElement | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const synthIntervalRef = useRef<any>(null);
-  const noteIndexRef = useRef<number>(0);
-
-  // Traditional Aceh song "Bungong Jeumpa" melody definition (C-major approximation for soft instrument feel)
-  const BUNGONG_JEUMPA_MELODY = [
-    { freq: 392.00, dur: 0.4 }, // G4 - Bu-
-    { freq: 392.00, dur: 0.4 }, // G4 - ngong
-    { freq: 440.00, dur: 0.4 }, // A4 - jeum-
-    { freq: 493.88, dur: 0.8 }, // B4 - pa
-    
-    { freq: 493.88, dur: 0.4 }, // B4 - bu-
-    { freq: 440.00, dur: 0.4 }, // A4 - ngong
-    { freq: 392.00, dur: 0.4 }, // G4 - jeum-
-    { freq: 440.00, dur: 0.8 }, // A4 - pa
-    
-    { freq: 493.88, dur: 0.4 }, // B4 - meu-
-    { freq: 493.88, dur: 0.4 }, // B4 - gah
-    { freq: 440.00, dur: 0.4 }, // A4 - di
-    { freq: 392.00, dur: 0.8 }, // G4 - A-
-    
-    { freq: 440.00, dur: 0.4 }, // A4 - ceh
-    { freq: 493.88, dur: 0.4 }, // B4 - meu-
-    { freq: 523.25, dur: 0.8 }, // C5 - gah
-    { freq: 493.88, dur: 0.4 }, // B4 - di
-    { freq: 440.00, dur: 0.4 }, // A4 - A-
-    { freq: 392.00, dur: 1.0 }, // G4 - ceh
-    
-    // Repeat phrase
-    { freq: 392.00, dur: 0.4 }, 
-    { freq: 392.00, dur: 0.4 }, 
-    { freq: 440.00, dur: 0.4 }, 
-    { freq: 493.88, dur: 0.8 }, 
-    
-    { freq: 493.88, dur: 0.4 }, 
-    { freq: 440.00, dur: 0.4 }, 
-    { freq: 392.00, dur: 0.4 }, 
-    { freq: 440.00, dur: 0.8 }, 
-    
-    { freq: 493.88, dur: 0.4 }, 
-    { freq: 493.88, dur: 0.4 }, 
-    { freq: 440.00, dur: 0.4 }, 
-    { freq: 392.00, dur: 0.8 }, 
-    
-    { freq: 440.00, dur: 0.4 }, 
-    { freq: 493.88, dur: 0.4 }, 
-    { freq: 523.25, dur: 0.8 }, 
-    { freq: 493.88, dur: 0.4 }, 
-    { freq: 440.00, dur: 0.4 }, 
-    { freq: 392.00, dur: 1.0 },
-    
-    // Chorus: "Bungong jeumpa, bungong jeumpa..."
-    { freq: 523.25, dur: 0.6 }, // C5 - Bu-
-    { freq: 523.25, dur: 0.6 }, // C5 - ngong
-    { freq: 493.88, dur: 0.4 }, // B4 - jeum-
-    { freq: 440.00, dur: 0.8 }, // A4 - pa
-    
-    { freq: 493.88, dur: 0.4 }, // B4 - bu-
-    { freq: 523.25, dur: 0.4 }, // C5 - ngong
-    { freq: 493.88, dur: 0.8 }, // B4 - jeum-
-    { freq: 440.00, dur: 0.4 }, // A4 - pa
-    
-    { freq: 392.00, dur: 0.4 }, // G4 - me-
-    { freq: 440.00, dur: 0.8 }, // A4 - lah
-    
-    { freq: 493.88, dur: 0.4 }, // B4 - ke-
-    { freq: 493.88, dur: 0.4 }, // B4 - bang
-    { freq: 440.00, dur: 0.4 }, // A4 - si-
-    { freq: 392.00, dur: 0.8 }, // G4 - lah
-    
-    { freq: 440.00, dur: 0.4 }, // A4 - pe-
-    { freq: 493.88, dur: 0.4 }, // B4 - ra-
-    { freq: 523.25, dur: 0.8 }, // C5 - san
-    { freq: 493.88, dur: 0.4 }, // B4 - a-
-    { freq: 440.00, dur: 0.4 }, // A4 - dun
-    { freq: 392.00, dur: 1.2 }, // G4 - nyo
-  ];
-
-  // List of possible sources for Bungong Jeumpa, from local assets to online fallbacks
-  const vocalSourcesRef = useRef<string[]>([
-    "/Bungong_Jeumpa.mp3",
-    "/bungong_jeumpa.mp3",
-    "/assets/audio/Bungong_Jeumpa.mp3",
-    "https://raw.githubusercontent.com/fawwaz/indonesian-folk-songs/master/audio/aceh_bungong_jeumpa.mp3"
-  ]);
-  const currentSourceIdxRef = useRef<number>(0);
-
-  // Initialize Audio Streams
-  useEffect(() => {
-    // Create direct Audio Element for streaming mp3 tracks
-    const audio = new Audio();
-    audio.loop = true;
-    audio.crossOrigin = "anonymous";
-    audioStreamRef.current = audio;
-
-    // Set initial source
-    currentSourceIdxRef.current = 0;
-    audio.src = vocalSourcesRef.current[0];
-
-    // Handle error by trying next source sequentially
-    const handleError = (e: any) => {
-      if (selectedTrack === "vocal" && currentSourceIdxRef.current < vocalSourcesRef.current.length - 1) {
-        currentSourceIdxRef.current += 1;
-        const nextSrc = vocalSourcesRef.current[currentSourceIdxRef.current];
-        console.log(`Audio source failed. Falling back to source ${currentSourceIdxRef.current}: ${nextSrc}`);
-        audio.src = nextSrc;
-        if (isPlaying) {
-          audio.play().catch(err => console.log("Failed to play fallback:", err));
-        }
-      }
-    };
-
-    audio.addEventListener("error", handleError);
-
-    return () => {
-      audio.pause();
-      audio.removeEventListener("error", handleError);
-      stopSynth();
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close();
-      }
-    };
-  }, [selectedTrack, isPlaying]);
-
-  // Sync volume of audio streams
-  useEffect(() => {
-    if (audioStreamRef.current) {
-      audioStreamRef.current.volume = isMuted ? 0 : volume / 100;
-    }
-  }, [volume, isMuted]);
-
-  // Handle Play/Pause and track transition
-  useEffect(() => {
-    if (!isPlaying) {
-      // Pause everything
-      if (audioStreamRef.current) {
-        audioStreamRef.current.pause();
-      }
-      stopSynth();
-      return;
-    }
-
-    // Play based on selected track
-    if (selectedTrack === "synth") {
-      if (audioStreamRef.current) {
-        audioStreamRef.current.pause();
-      }
-      startSynth();
-    } else {
-      stopSynth();
-      if (audioStreamRef.current) {
-        let streamUrl = "";
-        if (selectedTrack === "vocal") {
-          // Use the current active source index for vocal
-          streamUrl = vocalSourcesRef.current[currentSourceIdxRef.current];
-        } else {
-          // Instrumental track
-          streamUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3";
-        }
-        
-        if (audioStreamRef.current.src !== streamUrl) {
-          audioStreamRef.current.src = streamUrl;
-        }
-        
-        audioStreamRef.current.play().catch(err => {
-          console.warn("Autoplay or stream load prevented by browser:", err);
-          // Try triggering a fallback manually if first load blocked/errored
-          if (selectedTrack === "vocal" && currentSourceIdxRef.current < vocalSourcesRef.current.length - 1) {
-            currentSourceIdxRef.current += 1;
-            audioStreamRef.current!.src = vocalSourcesRef.current[currentSourceIdxRef.current];
-            audioStreamRef.current!.play().catch(() => {});
-          } else {
-            setIsPlaying(false);
-          }
-        });
-      }
-    }
-  }, [isPlaying, selectedTrack]);
-
-  // Start the custom live Web Audio synth for Bungong Jeumpa
-  const startSynth = () => {
-    stopSynth();
-    
-    // Create Audio Context if it doesn't exist
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-
-    if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
-      audioCtxRef.current = new AudioContextClass();
-    }
-
-    const ctx = audioCtxRef.current;
-    if (ctx.state === "suspended") {
-      ctx.resume();
-    }
-
-    noteIndexRef.current = 0;
-
-    const playNextNote = () => {
-      if (!isPlaying || selectedTrack !== "synth" || ctx.state === "closed") return;
-
-      const note = BUNGONG_JEUMPA_MELODY[noteIndexRef.current];
-      if (!note) {
-        noteIndexRef.current = 0;
-        playNextNote();
-        return;
-      }
-
-      // Create oscillator and smooth gain
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      // Use sweet triangle wave for cozy, traditional marimba/flute-like feel
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(note.freq, ctx.currentTime);
-
-      const now = ctx.currentTime;
-      const duration = note.dur;
-      const currentVolume = isMuted ? 0 : volume / 100;
-
-      // ADSR envelope
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.18 * currentVolume, now + 0.04); // Attack
-      gain.gain.setValueAtTime(0.18 * currentVolume, now + duration - 0.06); // Sustain
-      gain.gain.linearRampToValueAtTime(0, now + duration); // Release
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now);
-      osc.stop(now + duration);
-
-      noteIndexRef.current = (noteIndexRef.current + 1) % BUNGONG_JEUMPA_MELODY.length;
-
-      // Schedule next note
-      synthIntervalRef.current = setTimeout(playNextNote, duration * 1000);
-    };
-
-    playNextNote();
-  };
-
-  // Stop synthesis loop safely
-  const stopSynth = () => {
-    if (synthIntervalRef.current) {
-      clearTimeout(synthIntervalRef.current);
-      synthIntervalRef.current = null;
-    }
-  };
-
-  // Switch tracks smoothly
-  const handleTrackChange = (track: "vocal" | "synth" | "instrumental") => {
-    setSelectedTrack(track);
-    setIsPlaying(true);
-    setShowMusicDropdown(false);
-  };
+  // Sound Player State from global context (persistent across all pages)
+  const {
+    selectedTrack,
+    isPlaying,
+    volume,
+    isMuted,
+    showMusicDropdown,
+    showPlayerFloat,
+    setSelectedTrack,
+    setIsPlaying,
+    setVolume,
+    setIsMuted,
+    setShowMusicDropdown,
+    setShowPlayerFloat,
+    handleTrackChange
+  } = useMusicPlayer();
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
