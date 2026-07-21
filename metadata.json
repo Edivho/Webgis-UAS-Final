@@ -1,0 +1,6 @@
+{
+  "name": "WebGIS Perubahan Vegetasi Aceh Tamiang",
+  "description": "WebGIS akademik interaktif untuk analisis perubahan vegetasi Kabupaten Aceh Tamiang tahun 2025-2026 menggunakan NDVI dan Random Forest.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
