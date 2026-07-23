@@ -61,15 +61,25 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const synthIntervalRef = useRef<any>(null);
   const noteIndexRef = useRef<number>(0);
 
+  // Sync state ke Ref untuk mencegah interval synth dan player di-restart berulang kali
+  const volumeRef = useRef(volume);
+  const isMutedRef = useRef(isMuted);
+  const isPlayingRef = useRef(isPlaying);
+  const selectedTrackRef = useRef(selectedTrack);
+
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
+  useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { selectedTrackRef.current = selectedTrack; }, [selectedTrack]);
+
+  // Sumber Audio (disesuaikan dengan folder public/assets/audio/bungong_jeumpa.mp3)
   const vocalSourcesRef = useRef<string[]>([
-    "/assets/audio/Bungong_Jeumpa.mp3",
-    "/Bungong_Jeumpa.mp3",
-    "/bungong_jeumpa.mp3",
+    "/assets/audio/bungong_jeumpa.mp3",
     "https://raw.githubusercontent.com/fawwaz/indonesian-folk-songs/master/audio/aceh_bungong_jeumpa.mp3"
   ]);
   const currentSourceIdxRef = useRef<number>(0);
 
-  // --- Start / Stop Synth ---
+  // --- Stop Synth ---
   const stopSynth = useCallback(() => {
     if (synthIntervalRef.current) {
       clearTimeout(synthIntervalRef.current);
@@ -77,6 +87,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
+  // --- Start Synth ---
   const startSynth = useCallback(() => {
     stopSynth();
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -91,7 +102,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     noteIndexRef.current = 0;
 
     const playNextNote = () => {
-      if (!isPlaying || selectedTrack !== "synth" || ctx.state === "closed") return;
+      if (!isPlayingRef.current || selectedTrackRef.current !== "synth" || ctx.state === "closed") return;
 
       const note = BUNGONG_JEUMPA_MELODY[noteIndexRef.current];
       if (!note) {
@@ -107,7 +118,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
       const now = ctx.currentTime;
       const duration = note.dur;
-      const currentVolume = isMuted ? 0 : volume / 100;
+      const currentVolume = isMutedRef.current ? 0 : volumeRef.current / 100;
 
       gain.gain.setValueAtTime(0, now);
       gain.gain.linearRampToValueAtTime(0.18 * currentVolume, now + 0.04);
@@ -124,26 +135,25 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     };
 
     playNextNote();
-  }, [isPlaying, selectedTrack, volume, isMuted, stopSynth]);
+  }, [stopSynth]);
 
   // --- Initialize Audio Element ---
   useEffect(() => {
     const audio = new Audio();
     audio.loop = true;
-    audio.crossOrigin = "anonymous";
     audioStreamRef.current = audio;
 
     currentSourceIdxRef.current = 0;
     audio.src = vocalSourcesRef.current[0];
 
     const handleError = () => {
-      if (selectedTrack === "vocal" && currentSourceIdxRef.current < vocalSourcesRef.current.length - 1) {
+      if (selectedTrackRef.current === "vocal" && currentSourceIdxRef.current < vocalSourcesRef.current.length - 1) {
         currentSourceIdxRef.current += 1;
         const nextSrc = vocalSourcesRef.current[currentSourceIdxRef.current];
-        console.log("Audio source failed. Falling back to source " + currentSourceIdxRef.current + ": " + nextSrc);
+        console.warn("Audio source failed. Falling back to:", nextSrc);
         audio.src = nextSrc;
-        if (isPlaying) {
-          audio.play().catch(err => console.log("Failed to play fallback:", err));
+        if (isPlayingRef.current) {
+          audio.play().catch(err => console.error("Failed to play fallback:", err));
         }
       }
     };
@@ -158,7 +168,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         audioCtxRef.current.close();
       }
     };
-  }, []); // Only run once on mount
+  }, [stopSynth]);
 
   // --- Sync Volume ---
   useEffect(() => {
@@ -188,7 +198,8 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
           streamUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3";
         }
 
-        if (audioStreamRef.current.src !== streamUrl) {
+        // Cek agar tidak me-reset audio jika source sama
+        if (!audioStreamRef.current.src.endsWith(streamUrl)) {
           audioStreamRef.current.src = streamUrl;
         }
 
@@ -197,7 +208,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
           if (selectedTrack === "vocal" && currentSourceIdxRef.current < vocalSourcesRef.current.length - 1) {
             currentSourceIdxRef.current += 1;
             audioStreamRef.current!.src = vocalSourcesRef.current[currentSourceIdxRef.current];
-            audioStreamRef.current!.play().catch(() => {});
+            audioStreamRef.current!.play().catch(() => setIsPlaying(false));
           } else {
             setIsPlaying(false);
           }
@@ -230,4 +241,3 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   return React.createElement(MusicPlayerContext.Provider, { value }, children);
 }
-

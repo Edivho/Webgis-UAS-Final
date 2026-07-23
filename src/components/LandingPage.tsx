@@ -206,7 +206,7 @@ export default function LandingPage({
           >
             {/* Tagline */}
             <span id="hero-tag" className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-emerald-500/5 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm">
-              <Activity className="h-3.5 w-3.5 animate-pulse text-emerald-400" /> Platform Pemantauan Spasial Tingkat Profesional
+              <Activity className="h-3.5 w-3.5 animate-pulse text-emerald-400" /> Platform Pemantauan Spasial 
             </span>
 
             {/* Title */}
