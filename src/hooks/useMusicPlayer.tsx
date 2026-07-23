@@ -61,7 +61,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   const synthIntervalRef = useRef<any>(null);
   const noteIndexRef = useRef<number>(0);
 
-  // Sync state ke Ref untuk mencegah interval synth dan player di-restart berulang kali
+  // Sync state ke Ref
   const volumeRef = useRef(volume);
   const isMutedRef = useRef(isMuted);
   const isPlayingRef = useRef(isPlaying);
@@ -72,7 +72,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { selectedTrackRef.current = selectedTrack; }, [selectedTrack]);
 
-  // Sumber Audio (disesuaikan dengan folder public/assets/audio/bungong_jeumpa.mp3)
+  // Sumber Audio
   const vocalSourcesRef = useRef<string[]>([
     "/assets/audio/bungong_jeumpa.mp3",
     "https://raw.githubusercontent.com/fawwaz/indonesian-folk-songs/master/audio/aceh_bungong_jeumpa.mp3"
@@ -137,7 +137,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     playNextNote();
   }, [stopSynth]);
 
-  // --- Initialize Audio Element ---
+  // --- Initialize Audio Element & First User Click Interaction ---
   useEffect(() => {
     const audio = new Audio();
     audio.loop = true;
@@ -160,9 +160,26 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
     audio.addEventListener("error", handleError);
 
+    // FITUR AUTO PLAY PAS KLIK WEB (Melewati Autoplay Restriction Browser)
+    const handleFirstUserInteraction = () => {
+      if (!isPlayingRef.current) {
+        setIsPlaying(true);
+      }
+      window.removeEventListener("click", handleFirstUserInteraction);
+      window.removeEventListener("keydown", handleFirstUserInteraction);
+      window.removeEventListener("touchstart", handleFirstUserInteraction);
+    };
+
+    window.addEventListener("click", handleFirstUserInteraction);
+    window.addEventListener("keydown", handleFirstUserInteraction);
+    window.addEventListener("touchstart", handleFirstUserInteraction);
+
     return () => {
       audio.pause();
       audio.removeEventListener("error", handleError);
+      window.removeEventListener("click", handleFirstUserInteraction);
+      window.removeEventListener("keydown", handleFirstUserInteraction);
+      window.removeEventListener("touchstart", handleFirstUserInteraction);
       stopSynth();
       if (audioCtxRef.current) {
         audioCtxRef.current.close();
@@ -198,19 +215,16 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
           streamUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3";
         }
 
-        // Cek agar tidak me-reset audio jika source sama
         if (!audioStreamRef.current.src.endsWith(streamUrl)) {
           audioStreamRef.current.src = streamUrl;
         }
 
         audioStreamRef.current.play().catch(err => {
-          console.warn("Autoplay or stream load prevented by browser:", err);
+          console.warn("Autoplay blocked or stream load error:", err);
           if (selectedTrack === "vocal" && currentSourceIdxRef.current < vocalSourcesRef.current.length - 1) {
             currentSourceIdxRef.current += 1;
             audioStreamRef.current!.src = vocalSourcesRef.current[currentSourceIdxRef.current];
             audioStreamRef.current!.play().catch(() => setIsPlaying(false));
-          } else {
-            setIsPlaying(false);
           }
         });
       }
