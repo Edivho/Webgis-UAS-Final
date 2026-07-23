@@ -180,7 +180,7 @@ export default function DataProses({ theme = "light" }: DataProsesProps) {
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-slate-400">Seed Nilai</span>
-              <span className={`font-semibold font-mono ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>42</span>
+              <span className={`font-semibold font-mono ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>123</span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-slate-400">Prediktor Spektral</span>

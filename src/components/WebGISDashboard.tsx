@@ -5,7 +5,6 @@ import DataProses from "./DataProses";
 import EvaluasiModel from "./EvaluasiModel";
 import InsightHasil from "./InsightHasil";
 import FloodContext from "./FloodContext";
-import { getFeatureArea } from "../utils/geoUtils";
 import { useMusicPlayer } from "../hooks/useMusicPlayer";
 import { 
   Map, 
@@ -131,7 +130,6 @@ export default function WebGISDashboard({ onBackToLanding, theme, onToggleTheme 
           setIsLoading(false);
         })
         .catch(() => {
-          // Gracefully handle if boundary dataset is optional/missing
           setIsLoading(false);
         });
     })
@@ -150,16 +148,13 @@ export default function WebGISDashboard({ onBackToLanding, theme, onToggleTheme 
     { id: "flood", name: "Konteks Banjir 2025", icon: <AlertTriangle className="w-4 h-4 text-amber-500 animate-pulse" /> },
   ] as const;
 
-  // Compute stats for KPI cards directly from actual features
-  const veg2025Features = veg2025?.features || [];
-  const veg2026Features = veg2026?.features || [];
-  const gainFeatures = gainData?.features || [];
-  const lossFeatures = lossData?.features || [];
-
-  const totalVeg2025AreaHa = veg2025Features.reduce((acc: number, f: any) => acc + getFeatureArea(f), 0) / 10000;
-  const totalVeg2026AreaHa = veg2026Features.reduce((acc: number, f: any) => acc + getFeatureArea(f), 0) / 10000;
-  const totalGainAreaHa = gainFeatures.reduce((acc: number, f: any) => acc + getFeatureArea(f), 0) / 10000;
-  const totalLossAreaHa = lossFeatures.reduce((acc: number, f: any) => acc + getFeatureArea(f), 0) / 10000;
+  // ==============================================================
+  // NILAI REVISI DATA TERBARU (SATUAN HA)
+  // ==============================================================
+  const totalVeg2025AreaHa = 116318.7;
+  const totalVeg2026AreaHa = 119269.3;
+  const totalGainAreaHa = 33756.9;
+  const totalLossAreaHa = 30806.3;
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${
@@ -325,7 +320,7 @@ export default function WebGISDashboard({ onBackToLanding, theme, onToggleTheme 
           </div>
         ) : (
           <>
-            {/* KPI Cards Section */}
+            {/* KPI Cards Section - MENGGUNAKAN DATA REVISI TERBARU */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Card 1: Vegetasi 2025 */}
               <div className={`border rounded-xl p-4 shadow-sm flex items-center justify-between transition-all duration-300 ${
@@ -446,11 +441,11 @@ export default function WebGISDashboard({ onBackToLanding, theme, onToggleTheme 
                   {activeTab === "evaluation" && <EvaluasiModel theme={theme} />}
                   {activeTab === "insights" && (
                     <InsightHasil 
-                      veg2025={veg2025}
-                      veg2026={veg2026}
-                      gainData={gainData}
-                      lossData={lossData}
-                      boundaryData={boundaryData}
+                      veg2025={totalVeg2025AreaHa / 100}
+                      veg2026={totalVeg2026AreaHa / 100}
+                      gainData={totalGainAreaHa / 100}
+                      lossData={totalLossAreaHa / 100}
+                      boundaryData={1939.75}
                       theme={theme}
                     />
                   )}

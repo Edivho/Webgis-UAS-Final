@@ -1,5 +1,4 @@
 import React from "react";
-import { getFeatureArea, getFeaturePixelCount } from "../utils/geoUtils";
 import { 
   BarChart, 
   Bar, 
@@ -7,93 +6,82 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  Legend, 
   ResponsiveContainer, 
   PieChart, 
   Pie, 
   Cell 
 } from "recharts";
-import { TrendingDown, ArrowDownRight, ArrowUpRight, Leaf, ShieldAlert, CheckCircle, FileText } from "lucide-react";
+import { TrendingUp, ArrowDownRight, ArrowUpRight, Leaf, ShieldAlert, CheckCircle, FileText } from "lucide-react";
 
 interface InsightHasilProps {
-  veg2025: any;
-  veg2026: any;
-  gainData: any;
-  lossData: any;
+  veg2025?: any;
+  veg2026?: any;
+  gainData?: any;
+  lossData?: any;
   boundaryData?: any;
   theme?: "light" | "dark";
 }
 
 export default function InsightHasil({
-  veg2025,
-  veg2026,
-  gainData,
-  lossData,
-  boundaryData,
   theme = "light"
 }: InsightHasilProps) {
-  // 1. DYNAMIC CALCULATIONS DIRECTLY FROM ACTUAL LOADED GEOJSON ATRIBUTES
-  const boundaryFeatures = boundaryData?.features || [];
-  const veg2025Features = veg2025?.features || [];
-  const veg2026Features = veg2026?.features || [];
-  const gainFeatures = gainData?.features || [];
-  const lossFeatures = lossData?.features || [];
+  // 1. NILAI LUAS TEPAT SESUAI HASIL PENGOLAHAN GOOGLE EARTH ENGINE (GEE)
+  const totalVeg2025AreaHa = 115218.78; // Ha
+  const totalVeg2026AreaHa = 117921.72; // Ha
+  const totalGainAreaHa = 32969.07;    // Ha
+  const totalLossAreaHa = 30266.12;    // Ha
+  const pctChangeVeg = 2.35;            // % (2.345924...)
+  
+  // Konversi ke Meter Persegi (m²) & Kilometer Persegi (km²)
+  const totalVeg2025AreaM2 = totalVeg2025AreaHa * 10000;
+  const totalVeg2026AreaM2 = totalVeg2026AreaHa * 10000;
+  const totalGainAreaM2 = totalGainAreaHa * 10000;
+  const totalLossAreaM2 = totalLossAreaHa * 10000;
 
-  // Sum areas (m2)
-  const totalBoundaryArea = boundaryFeatures.length > 0 
-    ? boundaryFeatures.reduce((acc: number, f: any) => acc + getFeatureArea(f), 0)
-    : 1939750000; // standard fallback if boundary data not supplied
+  const veg2025Km2 = totalVeg2025AreaHa / 100; // 1.152,19 km²
+  const veg2026Km2 = totalVeg2026AreaHa / 100; // 1.179,22 km²
+  const gainKm2 = totalGainAreaHa / 100;       // 329,69 km²
+  const lossKm2 = totalLossAreaHa / 100;       // 302,66 km²
 
-  const totalVeg2025Area = veg2025Features.reduce((acc: number, f: any) => acc + getFeatureArea(f), 0);
-  const totalVeg2026Area = veg2026Features.reduce((acc: number, f: any) => acc + getFeatureArea(f), 0);
-  const totalGainArea = gainFeatures.reduce((acc: number, f: any) => acc + getFeatureArea(f), 0);
-  const totalLossArea = lossFeatures.reduce((acc: number, f: any) => acc + getFeatureArea(f), 0);
+  // Estimasi Luas Wilayah Kabupaten Aceh Tamiang (m²) & Piksel Citra (10m x 10m = 100m² per piksel)
+  const totalBoundaryAreaM2 = 1939750000; // ~1.939,75 km²
+  
+  const totalVeg2025Count = Math.round(totalVeg2025AreaM2 / 100); // ~11.521.878 piksel
+  const totalVeg2026Count = Math.round(totalVeg2026AreaM2 / 100); // ~11.792.172 piksel
+  const totalGainCount = Math.round(totalGainAreaM2 / 100);       // ~3.296.907 piksel
+  const totalLossCount = Math.round(totalLossAreaM2 / 100);       // ~3.026.612 piksel
+  const totalBoundaryCount = Math.round(totalBoundaryAreaM2 / 100);
 
-  // Sum pixel counts (count)
-  const totalBoundaryCount = boundaryFeatures.length > 0
-    ? boundaryFeatures.reduce((acc: number, f: any) => acc + getFeaturePixelCount(f, getFeatureArea(f)), 0)
-    : Math.round(totalBoundaryArea / 100);
+  // Perhitungan Rasio Tutupan
+  const pctVeg2025 = (totalVeg2025AreaM2 / totalBoundaryAreaM2) * 100;
+  const pctVeg2026 = (totalVeg2026AreaM2 / totalBoundaryAreaM2) * 100;
+  const netChangeAreaHa = totalVeg2026AreaHa - totalVeg2025AreaHa; // +2.702,94 Ha
 
-  const totalVeg2025Count = veg2025Features.reduce((acc: number, f: any) => acc + getFeaturePixelCount(f, getFeatureArea(f)), 0);
-  const totalVeg2026Count = veg2026Features.reduce((acc: number, f: any) => acc + getFeaturePixelCount(f, getFeatureArea(f)), 0);
-  const totalGainCount = gainFeatures.reduce((acc: number, f: any) => acc + getFeaturePixelCount(f, getFeatureArea(f)), 0);
-  const totalLossCount = lossFeatures.reduce((acc: number, f: any) => acc + getFeaturePixelCount(f, getFeatureArea(f)), 0);
-
-  // Derived non-vegetation areas
-  const nonVeg2025Area = totalBoundaryArea - totalVeg2025Area;
-  const nonVeg2026Area = totalBoundaryArea - totalVeg2026Area;
-
-  // Percentage Calculations
-  const pctVeg2025 = (totalVeg2025Area / totalBoundaryArea) * 100;
-  const pctVeg2026 = (totalVeg2026Area / totalBoundaryArea) * 100;
-  const netChangeArea = totalVeg2026Area - totalVeg2025Area; // should be exactly -60,000,000 m2 (-60 km2)
-  const netChangePct = (netChangeArea / totalVeg2025Area) * 100;
-
-  // Formatting helpers
-  const formatAreaKm = (areaM2: number) => {
-    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(areaM2 / 1000000) + " km²";
+  // Formatting Helper
+  const formatAreaKm = (km2Value: number) => {
+    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 }).format(km2Value) + " km²";
   };
+
   const formatNumber = (num: number) => {
     return new Intl.NumberFormat("id-ID").format(num);
   };
 
-  // Recharts Chart 1 Data: Bar Chart comparing areas
+  // Chart Data
   const barChartData = [
-    { name: "Vegetasi 2025", Luas_KM2: totalVeg2025Area / 1000000, Piksel: totalVeg2025Count },
-    { name: "Vegetasi 2026", Luas_KM2: totalVeg2026Area / 1000000, Piksel: totalVeg2026Count },
-    { name: "Gain Vegetasi", Luas_KM2: totalGainArea / 1000000, Piksel: totalGainCount },
-    { name: "Loss Vegetasi", Luas_KM2: totalLossArea / 1000000, Piksel: totalLossCount },
+    { name: "Vegetasi 2025", Luas_KM2: veg2025Km2, Piksel: totalVeg2025Count },
+    { name: "Vegetasi 2026", Luas_KM2: veg2026Km2, Piksel: totalVeg2026Count },
+    { name: "Gain Vegetasi", Luas_KM2: gainKm2, Piksel: totalGainCount },
+    { name: "Loss Vegetasi", Luas_KM2: lossKm2, Piksel: totalLossCount },
   ];
 
-  // Recharts Chart 2 Data: Composition Pie Charts
   const pieData2025 = [
-    { name: "Vegetasi 2025", value: totalVeg2025Area / 1000000, color: "#10b981" },
-    { name: "Non-Vegetasi 2025", value: nonVeg2025Area / 1000000, color: theme === "dark" ? "#475569" : "#cbd5e1" }
+    { name: "Vegetasi 2025", value: veg2025Km2, color: "#10b981" },
+    { name: "Non-Vegetasi 2025", value: (totalBoundaryAreaM2 / 1000000) - veg2025Km2, color: theme === "dark" ? "#475569" : "#cbd5e1" }
   ];
 
   const pieData2026 = [
-    { name: "Vegetasi 2026", value: totalVeg2026Area / 1000000, color: "#15803d" },
-    { name: "Non-Vegetasi 2026", value: nonVeg2026Area / 1000000, color: theme === "dark" ? "#334155" : "#94a3b8" }
+    { name: "Vegetasi 2026", value: veg2026Km2, color: "#15803d" },
+    { name: "Non-Vegetasi 2026", value: (totalBoundaryAreaM2 / 1000000) - veg2026Km2, color: theme === "dark" ? "#334155" : "#94a3b8" }
   ];
 
   return (
@@ -109,7 +97,7 @@ export default function InsightHasil({
             <Leaf className="w-4.5 h-4.5 text-emerald-500" />
           </div>
           <div>
-            <h4 className={`text-2xl font-extrabold font-display ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{formatAreaKm(totalVeg2025Area)}</h4>
+            <h4 className={`text-2xl font-extrabold font-display ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{formatAreaKm(veg2025Km2)}</h4>
             <p className="text-xs text-slate-400 mt-1">Sama dengan {formatNumber(totalVeg2025Count)} piksel citra</p>
           </div>
           <div className={`rounded-lg p-2 flex justify-between items-center text-xs ${theme === "dark" ? "bg-slate-800" : "bg-slate-50"}`}>
@@ -127,7 +115,7 @@ export default function InsightHasil({
             <Leaf className="w-4.5 h-4.5 text-emerald-600" />
           </div>
           <div>
-            <h4 className={`text-2xl font-extrabold font-display ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{formatAreaKm(totalVeg2026Area)}</h4>
+            <h4 className={`text-2xl font-extrabold font-display ${theme === "dark" ? "text-white" : "text-slate-900"}`}>{formatAreaKm(veg2026Km2)}</h4>
             <p className="text-xs text-slate-400 mt-1">Sama dengan {formatNumber(totalVeg2026Count)} piksel citra</p>
           </div>
           <div className={`rounded-lg p-2 flex justify-between items-center text-xs ${theme === "dark" ? "bg-slate-800" : "bg-slate-50"}`}>
@@ -145,14 +133,14 @@ export default function InsightHasil({
             <ArrowUpRight className="w-4.5 h-4.5 text-blue-500" />
           </div>
           <div>
-            <h4 className="text-2xl font-extrabold font-display text-blue-500">{formatAreaKm(totalGainArea)}</h4>
+            <h4 className="text-2xl font-extrabold font-display text-blue-500">{formatAreaKm(gainKm2)}</h4>
             <p className="text-xs text-slate-400 mt-1">Sama dengan {formatNumber(totalGainCount)} piksel citra</p>
           </div>
           <div className={`rounded-lg p-2 flex justify-between items-center text-xs font-semibold ${
             theme === "dark" ? "bg-blue-950/30 text-blue-300" : "bg-blue-50 text-blue-800"
           }`}>
             <span>Area Penghijauan Baru:</span>
-            <span className="font-mono">+{((totalGainArea / totalVeg2025Area) * 100).toFixed(1)}%</span>
+            <span className="font-mono">+{((totalGainAreaHa / totalVeg2025AreaHa) * 100).toFixed(1)}%</span>
           </div>
         </div>
 
@@ -165,14 +153,14 @@ export default function InsightHasil({
             <ArrowDownRight className="w-4.5 h-4.5 text-red-500" />
           </div>
           <div>
-            <h4 className="text-2xl font-extrabold font-display text-red-500">{formatAreaKm(totalLossArea)}</h4>
+            <h4 className="text-2xl font-extrabold font-display text-red-500">{formatAreaKm(lossKm2)}</h4>
             <p className="text-xs text-slate-400 mt-1">Sama dengan {formatNumber(totalLossCount)} piksel citra</p>
           </div>
           <div className={`rounded-lg p-2 flex justify-between items-center text-xs font-semibold ${
             theme === "dark" ? "bg-red-950/30 text-red-300" : "bg-red-50 text-red-800"
           }`}>
             <span>Area Deforestasi/Lahan Terbuka:</span>
-            <span className="font-mono">-{((totalLossArea / totalVeg2025Area) * 100).toFixed(1)}%</span>
+            <span className="font-mono">-{((totalLossAreaHa / totalVeg2025AreaHa) * 100).toFixed(1)}%</span>
           </div>
         </div>
       </div>
@@ -227,11 +215,11 @@ export default function InsightHasil({
             theme === "dark" ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-50 border-slate-100 text-slate-600"
           }`}>
             <div className="flex items-center gap-1.5 font-semibold">
-              <TrendingDown className="w-4 h-4 text-red-500" />
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
               <span className={theme === "dark" ? "text-slate-200" : "text-slate-700"}>Perubahan Netto Vegetasi:</span>
             </div>
-            <span className="font-mono font-bold text-red-500">
-              {formatAreaKm(netChangeArea)} ({netChangePct.toFixed(2)}%)
+            <span className="font-mono font-bold text-emerald-500">
+              +{formatAreaKm(netChangeAreaHa / 100)} (+{pctChangeVeg.toFixed(2)}%)
             </span>
           </div>
         </div>
@@ -310,7 +298,7 @@ export default function InsightHasil({
           <div className={`border-t pt-3.5 mt-4 space-y-2 ${theme === "dark" ? "border-slate-700" : "border-slate-100"}`}>
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-400">Total Luas Kabupaten (Boundary):</span>
-              <span className={`font-bold font-mono ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>{formatAreaKm(totalBoundaryArea)}</span>
+              <span className={`font-bold font-mono ${theme === "dark" ? "text-slate-200" : "text-slate-800"}`}>{formatAreaKm(totalBoundaryAreaM2 / 1000000)}</span>
             </div>
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-400">Estimasi Total Piksel Wilayah:</span>
@@ -336,7 +324,7 @@ export default function InsightHasil({
               <ArrowDownRight className="w-4.5 h-4.5 text-red-500" /> Dinamika Kehilangan (Loss)
             </h4>
             <p className={`text-xs leading-relaxed ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
-              Analisis mendeteksi pengurangan vegetasi sebesar **{formatAreaKm(totalLossArea)}** ({((totalLossArea / totalVeg2025Area) * 100).toFixed(1)}% dari awal). Terkonsentrasi di timur laut akibat pembukaan perkebunan sawit, pembangunan permukiman, dan perluasan tambak pesisir.
+              Analisis mendeteksi pengurangan vegetasi sebesar **{formatAreaKm(lossKm2)}** ({((totalLossAreaHa / totalVeg2025AreaHa) * 100).toFixed(1)}% dari awal). Terkonsentrasi di timur laut akibat pembukaan perkebunan sawit, pembangunan permukiman, dan perluasan tambak pesisir.
             </p>
           </div>
 
@@ -346,7 +334,7 @@ export default function InsightHasil({
               <ArrowUpRight className="w-4.5 h-4.5 text-blue-500" /> Pertumbuhan Baru (Gain)
             </h4>
             <p className={`text-xs leading-relaxed ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
-              Mencatat adanya pertumbuhan vegetasi baru sebesar **{formatAreaKm(totalGainArea)}**. Terdistribusi di hulu pegunungan barat daya berkat suksesi alami hutan sekunder dan program reboisasi kawasan hutan lindung.
+              Mencatat adanya pertumbuhan vegetasi baru sebesar **{formatAreaKm(gainKm2)}**. Terdistribusi di hulu pegunungan barat daya berkat suksesi alami hutan sekunder dan program reboisasi kawasan hutan lindung.
             </p>
           </div>
 
@@ -356,7 +344,7 @@ export default function InsightHasil({
               <CheckCircle className="w-4.5 h-4.5 text-emerald-500" /> Pola Distribusi Spasial
             </h4>
             <p className={`text-xs leading-relaxed ${theme === "dark" ? "text-slate-300" : "text-slate-600"}`}>
-              Kawasan hulu cenderung stabil mempertahankan rona hijau lebat. Zona transisi landai dan ekosistem mangrove di bagian utara sangat fluktuatif, memerlukan tindakan restorasi mangrove pesisir secara intensif.
+              Kawasan hulu cenderung stabil mempertahankan rona hijau lebat. Pertumbuhan vegetasi bersih sebesar **+{pctChangeVeg.toFixed(2)}%** menunjukkan tren positif pemulihan tutupan tajuk hijau secara keseluruhan.
             </p>
           </div>
 
